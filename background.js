@@ -1,3 +1,5 @@
+// Background service worker for WhatsBlitz
+
 chrome.runtime.onInstalled.addListener(() => {
-  console.log("WhatsBlitz installed.");
+  console.log('WhatsBlitz Extension installed');
 });

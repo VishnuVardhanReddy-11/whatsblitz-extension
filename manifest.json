@@ -2,22 +2,21 @@
   "manifest_version": 3,
   "name": "WhatsBlitz",
   "version": "1.0",
-  "description": "Automated personalized WhatsApp messaging",
+  "description": "Automated WhatsApp messaging extension",
   "permissions": [
     "scripting",
-    "tabs",
-    "storage",
-    "activeTab"
+    "storage"
   ],
   "host_permissions": [
     "https://web.whatsapp.com/*"
   ],
-  "background": {
-    "service_worker": "background.js"
-  },
   "action": {
     "default_popup": "popup.html",
-    "default_icon": "assets/icon.png"
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
   },
   "content_scripts": [
     {
@@ -25,8 +24,7 @@
       "js": ["content.js"]
     }
   ],
-  "web_accessible_resources": [{
-    "resources": ["sidebar.html", "styles.css"],
-    "matches": ["https://web.whatsapp.com/*"]
-  }]
+  "background": {
+    "service_worker": "background.js"
+  }
 }
