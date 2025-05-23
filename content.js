@@ -73,7 +73,7 @@ function waitForElement(selector, timeout = 10000) {
     }, interval);
   });
 }
-
+//done
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
