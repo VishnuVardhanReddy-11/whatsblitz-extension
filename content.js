@@ -1,15 +1,90 @@
 console.log("🚀 WhatsBlitz content script loaded on WhatsApp Web");
 
-const checkElements = () => {
-  const searchBox = document.querySelector("#side > div._ak9t > div > div._ai04 > div > div > div.x1hx0egp.x6ikm8r.x1odjw0f.x6prxxf.x1k6rcq7.x1whj5v > p");
-  const chatName = document.querySelector("#main > header > div.x78zum5.xdt5ytf.x1iyjqo2.xl56j7k.xeuugli.xtnn1bt.x9v5kkp.xmw7ebm.xrdum7p > div > div > div > div > span");
-  const messageBox = document.querySelector("#main > footer > div.x1n2onr6.xhtitgo.x9f619.x78zum5.x1q0g3np.xuk3077.xjbqb8w.x1wiwyrm.x1gryazu.xkrivgy.xquzyny.xnpuxes.copyable-area > div > span > div > div._ak1r > div > div.x9f619.x78zum5.x6s0dn4.xl56j7k.xpvyfi4.x2lah0s.x1c4vz4f.x1fns5xo.x1ba4aug.x14yjl9h.xudhj91.x18nykt9.xww2gxu.x1pse0pq.x8j4wrb.xfn3atn.x1ypdohk.x1m2oepg");
-  const sendButton = document.querySelector("#main > footer > div.x1n2onr6.xhtitgo.x9f619.x78zum5.x1q0g3np.xuk3077.xjbqb8w.x1wiwyrm.x1gryazu.xkrivgy.xquzyny.xnpuxes.copyable-area > div > span > div > div._ak1r > div > div.x9f619.x78zum5.x6s0dn4.xl56j7k.xpvyfi4.x2lah0s.x1c4vz4f.x1fns5xo.x1ba4aug.x14yjl9h.xudhj91.x18nykt9.xww2gxu.x1pse0pq.x8j4wrb.xfn3atn.x1ypdohk.x1m2oepg > button");
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.type === "SEND_MESSAGES") {
+    sendMessages(request.contacts)
+      .then(() => {
+        sendResponse({ status: "completed" });
+      })
+      .catch(err => {
+        sendResponse({ status: "error", error: err.message || String(err) });
+      });
+    return true; // Keep the message channel open for async response
+  }
+});
 
-  console.log("Search Box:", searchBox);
-  console.log("Chat Name:", chatName);
-  console.log("Message Input Box:", messageBox);
-  console.log("Send Button:", sendButton ? "Found" : "Not found");
-};
+async function sendMessages(contacts) {
+  for (const contact of contacts) {
+    const number = contact.number?.toString().trim();
+    const message = contact.message?.toString();
 
-setTimeout(checkElements, 8000);
+    if (!number || !message) {
+      console.warn("⚠️ Skipping invalid contact:", contact);
+      continue;
+    }
+
+    // Open chat for the number with prefilled message
+    const chatUrl = `https://web.whatsapp.com/send?phone=${number}&text=${encodeURIComponent(message)}`;
+    window.location.href = chatUrl;
+
+    // Wait for message input box to be available
+    const messageBox = await waitForElement("[contenteditable='true'][data-tab='10']", 30000);
+    if (!messageBox) {
+      console.error(`❌ Could not find message box for ${number}, skipping.`);
+      continue;
+    }
+
+    // Clear existing text if any and set message
+    messageBox.focus();
+    document.execCommand('selectAll', false, null);
+    document.execCommand('delete', false, null);
+    await setInputValue(messageBox, message);
+
+    // Wait for send button and click it
+    const sendButton = await waitForElement("button[data-testid='compose-btn-send']", 10000);
+    if (sendButton) {
+      sendButton.click();
+      console.log(`✅ Sent message to ${number}`);
+    } else {
+      console.error(`❌ Send button not found for ${number}, message not sent.`);
+    }
+
+    // Wait before sending next message
+    await delay(7000);
+  }
+  console.log("✅ Finished sending all messages.");
+}
+
+function waitForElement(selector, timeout = 10000) {
+  return new Promise((resolve) => {
+    const interval = 300;
+    let waited = 0;
+    const timer = setInterval(() => {
+      const el = document.querySelector(selector);
+      if (el) {
+        clearInterval(timer);
+        resolve(el);
+      }
+      waited += interval;
+      if (waited >= timeout) {
+        clearInterval(timer);
+        resolve(null);
+      }
+    }, interval);
+  });
+}
+
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function setInputValue(element, text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    element.focus();
+    document.execCommand('paste');
+  } catch {
+    element.textContent = text;
+    element.dispatchEvent(new InputEvent('input', { bubbles: true }));
+  }
+}
