@@ -1,7 +1,5 @@
-// Global variable to hold parsed contacts
 let parsedContacts = [];
 
-// File input change handler
 document.getElementById('fileInput').addEventListener('change', (event) => {
   const file = event.target.files[0];
   if (!file) return;
@@ -15,7 +13,6 @@ document.getElementById('fileInput').addEventListener('change', (event) => {
   }
 });
 
-// Parse CSV using PapaParse
 function parseCSV(file) {
   Papa.parse(file, {
     header: true,
@@ -30,15 +27,14 @@ function parseCSV(file) {
   });
 }
 
-// Parse XLSX using SheetJS
 function parseXLSX(file) {
   const reader = new FileReader();
   reader.onload = function(e) {
     const data = new Uint8Array(e.target.result);
-    const workbook = XLSX.read(data, {type: 'array'});
+    const workbook = XLSX.read(data, { type: 'array' });
     const firstSheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[firstSheetName];
-    const jsonData = XLSX.utils.sheet_to_json(worksheet, {defval: ''});
+    const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
     console.log('Parsed XLSX Data:', jsonData);
     displayTable(jsonData);
   };
@@ -48,7 +44,6 @@ function parseXLSX(file) {
   reader.readAsArrayBuffer(file);
 }
 
-// Display parsed contacts in table and enable send button
 function displayTable(data) {
   parsedContacts = data;
   const container = document.getElementById('tableContainer');
@@ -65,7 +60,7 @@ function displayTable(data) {
     const name = row.Name || row.name || '';
     const number = row.Number || row.number || '';
     const message = row.Message || row.message || '';
-    html += `<tr><td>${escapeHtml(name)}</td><td>${escapeHtml(number)}</td><td>${escapeHtml(message)}</td></tr>`;
+    html += <tr><td>${escapeHtml(name)}</td><td>${escapeHtml(number)}</td><td>${escapeHtml(message)}</td></tr>;
   });
   html += '</tbody></table>';
 
@@ -73,7 +68,6 @@ function displayTable(data) {
   sendBtn.disabled = false;
 }
 
-// Escape HTML to avoid injection issues
 function escapeHtml(text) {
   if (!text) return '';
   return text.replace(/&/g, "&amp;")
@@ -83,7 +77,6 @@ function escapeHtml(text) {
              .replace(/'/g, "&#039;");
 }
 
-// Send messages button click handler
 document.getElementById('sendMessagesBtn').addEventListener('click', () => {
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (!tabs.length) {
@@ -120,7 +113,7 @@ document.getElementById('sendMessagesBtn').addEventListener('click', () => {
         } else if (response.status === "error") {
           alert("❌ Error sending messages: " + response.error);
         } else {
-          alert("⚠️ Unknown response status.");
+          alert("⚠ Unknown response status.");
         }
       });
     }).catch((err) => {
@@ -128,4 +121,3 @@ document.getElementById('sendMessagesBtn').addEventListener('click', () => {
     });
   });
 });
-//done
