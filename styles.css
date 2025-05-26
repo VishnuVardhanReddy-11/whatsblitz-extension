@@ -1,0 +1,36 @@
+body {
+  font-family: Arial, sans-serif;
+  margin: 10px;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-top: 10px;
+}
+
+th, td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+}
+
+th {
+  background-color: #f2f2f2;
+}
+
+button {
+  margin: 5px 5px 5px 0;
+  padding: 8px 12px;
+}
+
+/* Added margin to create gap between Send Messages and Download Log buttons */
+#sendMessagesBtn {
+  margin-right: 15px;
+}
+
+#logStatus {
+  margin-top: 10px;
+  font-style: italic;
+  color: #555;
+}

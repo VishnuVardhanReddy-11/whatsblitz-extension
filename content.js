@@ -1,92 +1,88 @@
-console.log("🚀 WhatsBlitz content script loaded on WhatsApp Web");
+console.log('🚀 WhatsBlitz content script loaded on WhatsApp Web');
 
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.type === "SEND_MESSAGES") {
-    startSendingMessages(request.contacts)
-      .then(() => sendResponse({ status: "completed" }))
-      .catch(err => sendResponse({ status: "error", error: err.message }));
-    return true;
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === "SEND_SINGLE_MESSAGE") {
+    typeMessageOnly(message.contact).then(
+      () => sendResponse({ status: "completed" }),
+      (err) => sendResponse({ status: "error", error: err.message || err.toString() })
+    );
+    return true; // Keep message channel open for async response
   }
 });
 
-async function startSendingMessages(contacts) {
-  for (let i = 0; i < contacts.length; i++) {
-    const contact = contacts[i];
-    const number = contact.number?.toString().trim();
-    let message = contact.message?.toString();
-
-    if (!number || !message) {
-      console.warn("⚠ Skipping invalid contact:", contact);
-      continue;
-    }
-
-    // Replace placeholders
-    if (contact.name) {
-      message = message.replace(/\{\{name\}\}/g, contact.name);
-    }
-
-    console.log(➡ Navigating to chat with ${number}...);
-    await navigateToChat(number, message);
-
-    const messageBox = await waitForElement("[contenteditable='true'][data-tab]", 30000);
-    if (!messageBox) {
-      console.error(❌ Could not find message box for ${number});
-      continue;
-    }
-
-    await setInputValue(messageBox, message);
-
-    const sendButton = await waitForElement("button[data-testid='compose-btn-send']", 10000);
-    if (sendButton) {
-      sendButton.click();
-      console.log(✅ Sent message to ${number} (${i + 1}/${contacts.length}));
-    } else {
-      console.error(❌ Send button not found for ${number});
-    }
-
-    // Random delay
-    const delayMs = 5000 + Math.floor(Math.random() * 10000);
-    console.log(⏳ Waiting ${delayMs / 1000}s before next...);
-    await delay(delayMs);
+async function typeMessageOnly(contact) {
+  if (!contact || !contact.Number) {
+    throw new Error("Invalid contact or missing number");
   }
 
-  console.log("✅ Finished sending all messages.");
+  const number = formatNumber(contact.Number);
+  if (!number) {
+    throw new Error("Invalid phone number format");
+  }
+
+  const messageText = contact.Message || '';
+
+  // Navigate WhatsApp Web to the chat with phone number
+  window.location.href = `https://web.whatsapp.com/send?phone=${number}`;
+
+  // Wait for the chat and input box to load
+  await waitForChatLoad();
+
+  // Type the message inside input box (do NOT send)
+  await typeMessage(messageText);
+
+  // Wait briefly before finishing
+  await delay(1000);
 }
 
-async function navigateToChat(phone, message) {
-  const url = https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message)};
-  window.location.assign(url);
-  await waitForElement("[data-testid='conversation-info-header']", 15000);
+function formatNumber(number) {
+  let num = number.toString().replace(/\D/g, '');
+  if (!num) return null;
+  return num;
 }
 
-function waitForElement(selector, timeout = 10000) {
-  return new Promise(resolve => {
-    const interval = 500;
-    let elapsed = 0;
+function waitForChatLoad() {
+  return new Promise((resolve, reject) => {
+    let tries = 0;
+    const maxTries = 40; // up to 20 seconds
+    const interval = setInterval(() => {
+      const chatInput = document.querySelector('[contenteditable="true"][data-tab="10"]');
+      if (chatInput) {
+        clearInterval(interval);
+        resolve();
+      } else if (tries++ >= maxTries) {
+        clearInterval(interval);
+        reject(new Error('Chat input box did not load in time'));
+      }
+    }, 500);
+  });
+}
 
-    const check = () => {
-      const el = document.querySelector(selector);
-      if (el) return resolve(el);
-      elapsed += interval;
-      if (elapsed >= timeout) return resolve(null);
-      setTimeout(check, interval);
-    };
+function typeMessage(message) {
+  return new Promise((resolve, reject) => {
+    try {
+      const chatInput = document.querySelector('[contenteditable="true"][data-tab="10"]');
+      if (!chatInput) return reject(new Error('Chat input box not found'));
 
-    check();
+      chatInput.focus();
+
+      // Clear any existing content
+      document.execCommand('selectAll', false, null);
+      document.execCommand('delete', false, null);
+
+      // Insert message text
+      chatInput.textContent = message;
+
+      // Dispatch input event so WhatsApp UI updates
+      chatInput.dispatchEvent(new InputEvent('input', { bubbles: true }));
+
+      resolve();
+    } catch (err) {
+      reject(err);
+    }
   });
 }
 
 function delay(ms) {
-  return new Promise(res => setTimeout(res, ms));
-}
-
-async function setInputValue(el, text) {
-  try {
-    await navigator.clipboard.writeText(text);
-    el.focus();
-    document.execCommand('paste');
-  } catch {
-    el.textContent = text;
-    el.dispatchEvent(new InputEvent('input', { bubbles: true }));
-  }
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
